@@ -1,0 +1,16 @@
+{
+  "name": "Consumo Ralentí",
+  "supportEmail": "support@example.com",
+  "version": "1.0",
+  "items": [
+    {
+      "url": "index.html",
+      "path": "ActivityLink/",
+      "menuName": {
+        "en": "Idle Fuel Consumption",
+        "es": "Consumo en Ralentí"
+      }
+    }
+  ],
+  "isSigned": false
+}

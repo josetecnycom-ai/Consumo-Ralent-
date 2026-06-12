@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Consumo en Ralentí - Add-In MyGeotab</title>
+  
+  <!-- Estilos del Add-in -->
+  <link rel="stylesheet" href="css/main.css">
+  
+  <!-- Dependencias Externas mediante CDNs -->
+  <!-- Chart.js para las gráficas visuales -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- SheetJS para la exportación de archivos Excel -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+  <div id="consumo-ralenti-app">
+    
+    <!-- Cabecera de la Aplicación -->
+    <header class="app-header">
+      <div class="app-title-container">
+        <!-- SVG Icono de Combustible / Ralentí estilo Geotab -->
+        <svg class="app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 22h18" />
+          <path d="M6 12V4h6v8" />
+          <path d="M6 8h6" />
+          <path d="M14 22V10c0-1-1-2-2-2h-2c-1 0-2 1-2 2v12" />
+          <circle cx="18" cy="6" r="3" />
+          <path d="M18 9v13" />
+        </svg>
+        <div>
+          <h1>Consumo en Ralentí</h1>
+          <div class="app-subtitle">Métricas de consumo y ralentí con motor encendido</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Panel de Filtros -->
+    <section class="filters-panel">
+      <!-- Rango de Fechas (Presets) -->
+      <div class="filter-group">
+        <label for="date-preset">Periodo de Tiempo</label>
+        <select id="date-preset" class="filter-control">
+          <option value="today">Hoy</option>
+          <option value="yesterday">Ayer</option>
+          <option value="thisWeek">Esta Semana</option>
+          <option value="lastWeek">Semana Pasada</option>
+          <option value="thisMonth" selected>Este Mes</option>
+          <option value="lastMonth">Mes Pasado</option>
+          <option value="custom">Personalizado</option>
+        </select>
+      </div>
+
+      <!-- Fecha Inicial -->
+      <div class="filter-group">
+        <label for="date-from">Desde</label>
+        <input type="datetime-local" id="date-from" class="filter-control">
+      </div>
+
+      <!-- Fecha Final -->
+      <div class="filter-group">
+        <label for="date-to">Hasta</label>
+        <input type="datetime-local" id="date-to" class="filter-control">
+      </div>
+
+      <!-- Selector Múltiple de Vehículos -->
+      <div class="filter-group">
+        <label>Vehículos</label>
+        <div id="multiselect-dropdown" class="multiselect-dropdown filter-control">
+          <div id="multiselect-display" class="multiselect-display">
+            <span>Seleccionando...</span>
+            <div class="multiselect-arrow"></div>
+          </div>
+          <div class="multiselect-menu">
+            <input type="text" id="multiselect-search" class="multiselect-search" placeholder="Buscar vehículo..." autocomplete="off">
+            <div class="multiselect-actions">
+              <a id="select-all-vehicles" class="multiselect-link">Seleccionar Todos</a>
+              <a id="deselect-all-vehicles" class="multiselect-link">Limpiar Selección</a>
+            </div>
+            <div id="multiselect-list" class="multiselect-list">
+              <!-- Elementos cargados dinámicamente -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Agrupación Temporal -->
+      <div class="filter-group">
+        <label for="group-by">Agrupar por</label>
+        <select id="group-by" class="filter-control">
+          <option value="none" selected>Ninguno (Total del Periodo)</option>
+          <option value="day">Día</option>
+          <option value="week">Semana</option>
+          <option value="month">Mes</option>
+        </select>
+      </div>
+
+      <!-- Botones de Acción -->
+      <div class="filter-group">
+        <div class="buttons-group">
+          <button id="btn-update" class="btn btn-primary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+            </svg>
+            Actualizar
+          </button>
+          <button id="btn-export" class="btn btn-success">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+            </svg>
+            Excel
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tarjetas Estadísticas de Resumen -->
+    <section class="stats-summary">
+      <div class="stat-card">
+        <div class="stat-label">Vehículos Activos</div>
+        <div id="stat-vehicles-count" class="stat-value">-</div>
+        <div class="stat-desc">En el periodo consultado</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Consumo en Ralentí</div>
+        <div id="stat-total-fuel" class="stat-value">-</div>
+        <div class="stat-desc">Litros consumidos al ralentí</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Tiempo en Ralentí</div>
+        <div id="stat-total-idle" class="stat-value">-</div>
+        <div class="stat-desc">Motor encendido sin movimiento</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Km Recorridos</div>
+        <div id="stat-total-km" class="stat-value">-</div>
+        <div class="stat-desc">Distancia total de la flota</div>
+      </div>
+    </section>
+
+    <!-- Contenido Principal: Gráficos y Tabla -->
+    <section class="dashboard-content">
+      
+      <!-- Panel de Gráfico Visual -->
+      <div class="card">
+        <div class="card-title">
+          <span id="chart-title">Consumo en Ralentí por Vehículo</span>
+          <select id="chart-select-vehicle" class="filter-control" style="width: auto; height: 30px; font-size: 12px; padding: 2px 10px; display: none;">
+            <!-- Opciones cargadas dinámicamente -->
+          </select>
+        </div>
+        <div class="chart-container">
+          <canvas id="chart-canvas"></canvas>
+        </div>
+      </div>
+
+      <!-- Grid de Datos (Tabla) -->
+      <div class="card">
+        <div class="card-title">
+          <span>Resumen por Vehículo</span>
+          <span style="font-size: 11px; font-weight: normal; color: var(--geotab-text-secondary);">
+            Haga clic en un vehículo para ver su evolución temporal en la gráfica superior.
+          </span>
+        </div>
+        <div class="table-responsive">
+          <table class="geotab-table">
+            <thead>
+              <tr>
+                <th>Vehículo</th>
+                <th class="text-right">Tiempo Actividad</th>
+                <th class="text-right">Tiempo en Ralentí</th>
+                <th class="text-center">% Ralentí</th>
+                <th class="text-right">Consumo Ralentí</th>
+                <th class="text-right">Consumo Total</th>
+                <th class="text-right">Km Recorridos</th>
+              </tr>
+            </thead>
+            <tbody id="table-body">
+              <!-- Filas cargadas dinámicamente -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Overlay de Carga (Loader) -->
+    <div id="loader-overlay" class="loader-overlay">
+      <div class="spinner"></div>
+      <div class="loader-text">Consultando datos de MyGeotab...</div>
+    </div>
+
+    <!-- Estado de Error / Vacío -->
+    <div id="empty-state" class="empty-state" style="display: none;">
+      <div class="empty-state-icon">ℹ️</div>
+      <h3>No se encontraron vehículos</h3>
+      <p>Asegúrese de tener vehículos asignados en su perfil de MyGeotab o que las fechas seleccionadas contengan registros.</p>
+    </div>
+
+  </div>
+
+  <!-- Scripts del Add-in -->
+  <script src="js/apiService.js"></script>
+  <script src="js/excelExport.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
