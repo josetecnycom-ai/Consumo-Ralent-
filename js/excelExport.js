@@ -58,8 +58,8 @@ const ExcelExporter = (function () {
         };
       });
 
-      // Crear hoja de Resumen
-      const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
+      // Crear hoja de Resumen vacía para evitar que las cabeceras se generen en la fila 1 y queden duplicadas
+      const wsSummary = XLSX.utils.aoa_to_sheet([]);
       
       // Añadir fila de título a la hoja de Resumen para mejorar presentación
       XLSX.utils.sheet_add_aoa(wsSummary, [
@@ -67,7 +67,7 @@ const ExcelExporter = (function () {
         []
       ], { origin: "A1" });
 
-      // Volver a escribir los datos debajo del título
+      // Escribir los datos (con su cabecera automática) a partir de la fila 3 (A3)
       XLSX.utils.sheet_add_json(wsSummary, summaryRows, { origin: "A3" });
       
       // Auto-ajustar columnas
@@ -97,7 +97,8 @@ const ExcelExporter = (function () {
           return row;
         });
 
-        const wsDetail = XLSX.utils.json_to_sheet(detailRows);
+        // Crear hoja de Detalle vacía
+        const wsDetail = XLSX.utils.aoa_to_sheet([]);
         
         // Añadir título a la hoja de Detalle
         XLSX.utils.sheet_add_aoa(wsDetail, [
@@ -105,6 +106,7 @@ const ExcelExporter = (function () {
           []
         ], { origin: "A1" });
 
+        // Escribir los datos detallados a partir de la fila 3 (A3)
         XLSX.utils.sheet_add_json(wsDetail, detailRows, { origin: "A3" });
 
         autoFitColumns(wsDetail);
