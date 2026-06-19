@@ -13,6 +13,7 @@ geotab.addin.consumoRalenti = function (api, state) {
   let calculatedDetails = [];
   let activeChartInstance = null;
   let selectedChartVehicleId = null;
+  let lastRawData = null;
 
   // Elementos del DOM
   let elDatePreset, elDateFrom, elDateTo, elGroup, elSearchVehicle, elBtnUpdate, elBtnExport;
@@ -266,8 +267,8 @@ geotab.addin.consumoRalenti = function (api, state) {
 
       devTrips.forEach(t => {
         totalDistance += t.distance || 0;
-        totalActivity += parseTimeSpanToSeconds(t.drivingDuration) + parseTimeSpanToSeconds(t.idleDuration);
-        totalIdle += parseTimeSpanToSeconds(t.idleDuration);
+        totalActivity += parseTimeSpanToSeconds(t.drivingDuration) + parseTimeSpanToSeconds(t.idlingDuration);
+        totalIdle += parseTimeSpanToSeconds(t.idlingDuration);
       });
 
       // Combustible total del periodo completo
@@ -296,7 +297,7 @@ geotab.addin.consumoRalenti = function (api, state) {
         idlePercentage: idlePctTotal,
         idleFuel: periodIdleFuel,
         totalFuel: periodTotalFuel,
-        distance: totalDistance / 1000 // Convertir de metros a Km
+        distance: totalDistance // Ya está en Km
       });
 
       // 2. Cálculos desglosados por bin de tiempo (Detalles)
@@ -312,8 +313,8 @@ geotab.addin.consumoRalenti = function (api, state) {
 
         binTrips.forEach(t => {
           binDistance += t.distance || 0;
-          binActivity += parseTimeSpanToSeconds(t.drivingDuration) + parseTimeSpanToSeconds(t.idleDuration);
-          binIdle += parseTimeSpanToSeconds(t.idleDuration);
+          binActivity += parseTimeSpanToSeconds(t.drivingDuration) + parseTimeSpanToSeconds(t.idlingDuration);
+          binIdle += parseTimeSpanToSeconds(t.idlingDuration);
         });
 
         // Combustible del bin
@@ -344,7 +345,7 @@ geotab.addin.consumoRalenti = function (api, state) {
           idlePercentage: binIdlePct,
           idleFuel: binIdleFuel,
           totalFuel: binTotalFuel,
-          distance: binDistance / 1000
+          distance: binDistance // Ya está en Km
         });
       });
     });
@@ -400,7 +401,29 @@ geotab.addin.consumoRalenti = function (api, state) {
         document.querySelectorAll("#table-body tr").forEach(r => r.classList.remove("selected-row"));
         row.classList.add("selected-row");
         selectedChartVehicleId = item.deviceId;
+
+        // Si la agrupación es "none", la cambiamos automáticamente a "day" para poder ver la evolución
+        if (elGroup.value === "none") {
+          elGroup.value = "day";
+          
+          if (lastRawData) {
+            const fromDate = new Date(elDateFrom.value).toISOString();
+            const toDate = new Date(elDateTo.value).toISOString();
+            const results = processCalculations(
+              allDevices.filter(d => selectedDevices.includes(d.id)),
+              lastRawData.trips,
+              lastRawData.statusData,
+              fromDate,
+              toDate,
+              "day"
+            );
+            calculatedSummary = results.summary;
+            calculatedDetails = results.details;
+          }
+        }
+
         elChartSelectVehicle.value = selectedChartVehicleId;
+        updateChartSelect();
         renderCharts();
       });
 
@@ -674,6 +697,7 @@ geotab.addin.consumoRalenti = function (api, state) {
 
     GeotabApiService.getData(selectedDevices, fromDate, toDate, function (data) {
       elLoader.classList.remove("active");
+      lastRawData = data;
       
       const results = processCalculations(
         allDevices.filter(d => selectedDevices.includes(d.id)),
@@ -787,6 +811,30 @@ geotab.addin.consumoRalenti = function (api, state) {
         });
 
         renderCharts();
+      });
+
+      // Evento de cambio de agrupación temporal
+      elGroup.addEventListener("change", () => {
+        if (lastRawData) {
+          const fromDate = new Date(elDateFrom.value).toISOString();
+          const toDate = new Date(elDateTo.value).toISOString();
+          const grouping = elGroup.value;
+
+          const results = processCalculations(
+            allDevices.filter(d => selectedDevices.includes(d.id)),
+            lastRawData.trips,
+            lastRawData.statusData,
+            fromDate,
+            toDate,
+            grouping
+          );
+
+          calculatedSummary = results.summary;
+          calculatedDetails = results.details;
+
+          updateChartSelect();
+          renderCharts();
+        }
       });
 
       // Botones principales

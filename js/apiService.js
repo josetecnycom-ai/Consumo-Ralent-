@@ -94,10 +94,10 @@ const GeotabApiService = (function () {
 
             // Distancia en metros (velocidad promedio 40-75 km/h durante conducción)
             const avgSpeedKmh = 40 + Math.random() * 35;
-            const tripDistance = (drivingDurationMin / 60) * avgSpeedKmh * 1000;
+            const tripDistance = (drivingDurationMin / 60) * avgSpeedKmh; // en Km
 
             // Actualizar acumuladores
-            currentOdometer += tripDistance;
+            currentOdometer += tripDistance * 1000; // en metros
 
             // Consumo de combustible (Volvo y Scania consumen más; Maxus eléctrico no consume o consume kWh simulado)
             let fuelRateLh = 25; // 25 litros por hora de conducción promedio
@@ -120,9 +120,9 @@ const GeotabApiService = (function () {
               device: { id: device.id },
               start: tripStart.toISOString(),
               stop: tripEnd.toISOString(),
-              distance: tripDistance, // en metros
+              distance: tripDistance, // en Km
               drivingDuration: formatTimeSpan(drivingDurationMin * 60),
-              idleDuration: formatTimeSpan(idleDurationMin * 60)
+              idlingDuration: formatTimeSpan(idleDurationMin * 60)
             });
 
             // Registrar lecturas de diagnóstico al final del viaje
