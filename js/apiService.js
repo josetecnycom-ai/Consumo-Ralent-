@@ -218,6 +218,11 @@ const GeotabApiService = (function () {
         return;
       }
 
+      // Las lecturas acumuladas deben incluir puntos a ambos lados del periodo.
+      // Esto permite interpolar el valor del contador en los límites seleccionados.
+      const statusFromDate = new Date(new Date(fromDate).getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const statusToDate = new Date(new Date(toDate).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
       // Modo Online - Construir un MultiCall para optimizar red
       const calls = [
         ["Get", {
@@ -231,16 +236,16 @@ const GeotabApiService = (function () {
           typeName: "StatusData",
           search: {
             diagnosticSearch: { id: DIAGNOSTICS.totalFuel },
-            fromDate: fromDate,
-            toDate: toDate
+            fromDate: statusFromDate,
+            toDate: statusToDate
           }
         }],
         ["Get", {
           typeName: "StatusData",
           search: {
             diagnosticSearch: { id: DIAGNOSTICS.totalIdleFuel },
-            fromDate: fromDate,
-            toDate: toDate
+            fromDate: statusFromDate,
+            toDate: statusToDate
           }
         }],
         ["Get", {

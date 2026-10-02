@@ -155,19 +155,25 @@ geotab.addin.consumoRalenti = function (api, state) {
       }
     }
 
+    if (beforeRecord && new Date(beforeRecord.dateTime).getTime() === targetTime) {
+      const exactValue = Number(beforeRecord.data);
+      return Number.isFinite(exactValue) ? exactValue : null;
+    }
+
     if (beforeRecord && afterRecord) {
       const tA = new Date(beforeRecord.dateTime).getTime();
       const tB = new Date(afterRecord.dateTime).getTime();
-      const vA = beforeRecord.data;
-      const vB = afterRecord.data;
+      const vA = Number(beforeRecord.data);
+      const vB = Number(afterRecord.data);
+
+      if (!Number.isFinite(vA) || !Number.isFinite(vB)) return null;
 
       if (tB === tA) return vA;
       return vA + (vB - vA) * (targetTime - tA) / (tB - tA);
-    } else if (beforeRecord) {
-      return beforeRecord.data;
-    } else if (afterRecord) {
-      return afterRecord.data;
     }
+
+    // Sin lecturas a ambos lados no se puede determinar el valor del contador
+    // en el límite sin extrapolar ni subestimar el consumo del periodo.
     return null;
   }
 
