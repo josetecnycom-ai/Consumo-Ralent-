@@ -172,8 +172,14 @@ geotab.addin.consumoRalenti = function (api, state) {
       return vA + (vB - vA) * (targetTime - tA) / (tB - tA);
     }
 
-    // Sin lecturas a ambos lados no se puede determinar el valor del contador
-    // en el límite sin extrapolar ni subestimar el consumo del periodo.
+    // Los diagnósticos acumulados pueden no emitir una lectura después del
+    // cierre del periodo. En ese caso se usa la lectura más cercana disponible.
+    const nearestRecord = beforeRecord || afterRecord;
+    if (nearestRecord) {
+      const nearestValue = Number(nearestRecord.data);
+      return Number.isFinite(nearestValue) ? nearestValue : null;
+    }
+
     return null;
   }
 
