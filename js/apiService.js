@@ -218,11 +218,6 @@ const GeotabApiService = (function () {
         return;
       }
 
-      // Las lecturas acumuladas deben incluir puntos a ambos lados del periodo.
-      // Esto permite interpolar el valor del contador en los límites seleccionados.
-      const statusFromDate = new Date(new Date(fromDate).getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const statusToDate = new Date(new Date(toDate).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
-
       // Modo Online - Construir un MultiCall para optimizar red
       const calls = [
         ["Get", {
@@ -231,23 +226,30 @@ const GeotabApiService = (function () {
             fromDate: fromDate,
             toDate: toDate
           }
-        }],
-        ["Get", {
-          typeName: "StatusData",
-          search: {
-            diagnosticSearch: { id: DIAGNOSTICS.totalFuel },
-            fromDate: statusFromDate,
-            toDate: statusToDate
-          }
-        }],
-        ["Get", {
-          typeName: "StatusData",
-          search: {
-            diagnosticSearch: { id: DIAGNOSTICS.totalIdleFuel },
-            fromDate: statusFromDate,
-            toDate: statusToDate
-          }
-        }],
+        }]
+      ];
+
+      // StatusDataSearch interpola las lecturas en los límites cuando se
+      // especifican DeviceSearch, DiagnosticSearch y el rango de fechas.
+      // Consultar por vehículo evita descargar toda la flota y alcanzar el
+      // límite de resultados antes de llegar a los vehículos seleccionados.
+      const statusQueries = [];
+      deviceIds.forEach(deviceId => {
+        [DIAGNOSTICS.totalFuel, DIAGNOSTICS.totalIdleFuel].forEach(diagnosticId => {
+          statusQueries.push({ deviceId, diagnosticId });
+          calls.push(["Get", {
+            typeName: "StatusData",
+            search: {
+              deviceSearch: { id: deviceId },
+              diagnosticSearch: { id: diagnosticId },
+              fromDate: fromDate,
+              toDate: toDate
+            }
+          }]);
+        });
+      });
+
+      calls.push(
         ["Get", {
           typeName: "StatusData",
           search: {
@@ -256,16 +258,19 @@ const GeotabApiService = (function () {
             toDate: toDate
           }
         }]
-      ];
+      );
 
       apiInstance.multiCall(calls, function (results) {
         const trips = results[0] || [];
-        const fuelData = results[1] || [];
-        const idleFuelData = results[2] || [];
-        const odometerData = results[3] || [];
+        const statusData = [];
+        statusQueries.forEach((query, index) => {
+          const queryResult = results[index + 1] || [];
+          queryResult.forEach(record => statusData.push(record));
+        });
+        const odometerData = results[statusQueries.length + 1] || [];
 
         // Combinar todos los StatusData en un solo arreglo
-        const statusData = [...fuelData, ...idleFuelData, ...odometerData];
+        statusData.push(...odometerData);
 
         // Filtrar en memoria por los vehículos seleccionados para no saturar al servidor
         const filteredTrips = trips.filter(t => t.device && deviceIds.includes(t.device.id));
